@@ -4,27 +4,7 @@ import numpy as np
 from tensorflow.keras.models import load_model
 from PIL import Image
 import time
-
-# Set page title and favicon
-st.set_page_config(page_title="Can Classifier", page_icon=":can:")
-
-# Set background color and padding
-st.markdown(
-    """
-    <style>
-    .reportview-container {
-        background: linear-gradient(to right, #c9d6ff, #e2e2e2);
-        padding-top: 5rem;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# Set title and subtitle
-st.title("Can Classifier")
-st.sidebar.title("Menu")
-st.sidebar.write("This app classifies cans as defective or non-defective.")
+import tensorflow as tf
 
 # Simpan kredensial pengguna di session_state (untuk demo; gunakan database nyata dalam implementasi sebenarnya)
 if "users" not in st.session_state:
@@ -33,16 +13,11 @@ if "users" not in st.session_state:
     }
 
 # Load your Keras model
-@st.cache(allow_output_mutation=True)
-def load_model():
-    try:
-        model = load_model('model.h5')
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-        return model
-    except Exception as e:
-        st.error(f"Error loading model: {e}")
-
-model = load_model()
+try:
+    model = load_model('model.h5')
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+except Exception as e:
+    st.error(f"Error loading model: {e}")
 
 # Load Haar Cascade for object detection
 cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'  # Placeholder path, use appropriate classifier
@@ -58,7 +33,7 @@ def preprocess_image(image):
 def predict(image):
     processed_image = preprocess_image(image)
     prediction = model.predict(processed_image)
-    result = 'Defective Can' if prediction[0][0] <= 0.5 else 'Non-defective Can'  # Adjust the condition as needed
+    result = 'Kaleng Cacat' if prediction[0][0] <= 0.5 else 'Kaleng Tidak Cacat'  # Adjust the condition as needed
     return result
 
 # Function to check if the frame contains a can-like object
@@ -69,18 +44,18 @@ def is_valid_frame(frame):
 
 # Function to initialize the camera with different backends
 def initialize_camera(index):
-    backend_candidates = [cv2.CAP_ANY, cv2.CAP_V4L, cv2.CAP_MSMF]
-    for backend in backend_candidates:
-        cap = cv2.VideoCapture(index, backend)
-        if cap.isOpened():
-            st.write(f"Camera initialized with {backend} backend.")
-            return cap
-    st.error("No camera detected. Please check your camera device.")
-    st.stop()
+    cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)  # Try DirectShow backend
+    if not cap.isOpened():
+        st.write("DirectShow backend failed. Trying MSMF backend...")
+        cap = cv2.VideoCapture(index, cv2.CAP_MSMF)  # Try Media Foundation backend
+    if not cap.isOpened():
+        st.write("MSMF backend failed. Trying V4L2 backend...")
+        cap = cv2.VideoCapture(index, cv2.CAP_V4L2)  # Try V4L2 backend (for Linux)
+    return cap
 
-# Function for login page
+# Fungsi untuk halaman login
 def login():
-    st.subheader("Login")
+    st.title("Login")
     email = st.text_input("Email")
     password = st.text_input("Password", type='password')
     if st.button("Login"):
@@ -91,9 +66,9 @@ def login():
         else:
             st.error("Invalid email or password")
 
-# Function for registration page
+# Fungsi untuk halaman register
 def register():
-    st.subheader("Register")
+    st.title("Register")
     username = st.text_input("Username")
     email = st.text_input("Email")
     password = st.text_input("Password", type='password')
@@ -106,7 +81,7 @@ def register():
             st.session_state["users"] = users
             st.success("Registration successful. Please log in.")
 
-# Function for classification page
+# Fungsi untuk halaman klasifikasi
 def app():
     st.title("Can Classifier")
     st.write(f"Welcome, {st.session_state['username']}!")
@@ -122,6 +97,13 @@ def app():
         # Initialize camera
         camera_index = 0
         cap = initialize_camera(camera_index)
+        if not cap.isOpened():
+            st.error("No camera detected at index 0. Trying camera index 1.")
+            camera_index = 1
+            cap = initialize_camera(camera_index)
+            if not cap.isOpened():
+                st.error("No camera detected at index 1. Please check your camera device.")
+                st.stop()
 
         while run:
             start_time = time.time()
@@ -141,7 +123,7 @@ def app():
                 with col1:
                     FRAME_WINDOW.image(frame_rgb, caption="Captured Image")
                 with col2:
-                    RESULT_WINDOW.markdown(f"### Result\n\n**{result}**")
+                    RESULT_WINDOW.markdown(f"### Result Image\n\n**{result}**")
             else:
                 # Clear the result window if the frame is not valid
                 RESULT_WINDOW.empty()
@@ -169,7 +151,7 @@ if "logged_in" not in st.session_state:
 if st.session_state["logged_in"]:
     app()
 else:
-    choice = st.sidebar.selectbox("Login/Sign up", ["Login", "Register"])
+    choice = st.selectbox("Login/Sign up", ["Login", "Register"])
     if choice == "Login":
         login()
     else:
