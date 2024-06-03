@@ -165,7 +165,7 @@ if "logged_in" not in st.session_state:
 if st.session_state["logged_in"]:
     app()
 else:
-    choice = st.selectbox("Login/Sign up", ["Login", "Register"])
+    choice = st.sidebar.selectbox("Login/Sign up", ["Login", "Register"])
     if choice == "Login":
         login()
     else:
