@@ -6,6 +6,27 @@ from PIL import Image
 import time
 import tensorflow as tf
 
+# Set page title and favicon
+st.set_page_config(page_title="Can Classifier", page_icon=":can:")
+
+# Set background color and padding
+st.markdown(
+    """
+    <style>
+    .reportview-container {
+        background: linear-gradient(to right, #c9d6ff, #e2e2e2);
+        padding-top: 5rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Set title and subtitle
+st.title("Can Classifier")
+st.sidebar.title("Menu")
+st.sidebar.write("This app classifies cans as defective or non-defective.")
+
 # Simpan kredensial pengguna di session_state (untuk demo; gunakan database nyata dalam implementasi sebenarnya)
 if "users" not in st.session_state:
     st.session_state["users"] = {
@@ -33,7 +54,7 @@ def preprocess_image(image):
 def predict(image):
     processed_image = preprocess_image(image)
     prediction = model.predict(processed_image)
-    result = 'Kaleng Cacat' if prediction[0][0] <= 0.5 else 'Kaleng Tidak Cacat'  # Adjust the condition as needed
+    result = 'Defective Can' if prediction[0][0] <= 0.5 else 'Non-defective Can'  # Adjust the condition as needed
     return result
 
 # Function to check if the frame contains a can-like object
@@ -53,9 +74,9 @@ def initialize_camera(index):
     st.error("No camera detected. Please check your camera device.")
     st.stop()
 
-# Fungsi untuk halaman login
+# Function for login page
 def login():
-    st.title("Login")
+    st.subheader("Login")
     email = st.text_input("Email")
     password = st.text_input("Password", type='password')
     if st.button("Login"):
@@ -66,9 +87,9 @@ def login():
         else:
             st.error("Invalid email or password")
 
-# Fungsi untuk halaman register
+# Function for registration page
 def register():
-    st.title("Register")
+    st.subheader("Register")
     username = st.text_input("Username")
     email = st.text_input("Email")
     password = st.text_input("Password", type='password')
@@ -81,7 +102,7 @@ def register():
             st.session_state["users"] = users
             st.success("Registration successful. Please log in.")
 
-# Fungsi untuk halaman klasifikasi
+# Function for classification page
 def app():
     st.title("Can Classifier")
     st.write(f"Welcome, {st.session_state['username']}!")
@@ -116,7 +137,7 @@ def app():
                 with col1:
                     FRAME_WINDOW.image(frame_rgb, caption="Captured Image")
                 with col2:
-                    RESULT_WINDOW.markdown(f"### Result Image\n\n**{result}**")
+                    RESULT_WINDOW.markdown(f"### Result\n\n**{result}**")
             else:
                 # Clear the result window if the frame is not valid
                 RESULT_WINDOW.empty()
