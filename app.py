@@ -26,6 +26,12 @@ st.title("Can Classifier")
 st.sidebar.title("Menu")
 st.sidebar.write("This app classifies cans as defective or non-defective.")
 
+# Simpan kredensial pengguna di session_state (untuk demo; gunakan database nyata dalam implementasi sebenarnya)
+if "users" not in st.session_state:
+    st.session_state["users"] = {
+        "admin@example.com": {"username": "admin", "password": "password123"}
+    }
+
 # Load your Keras model
 @st.cache(allow_output_mutation=True)
 def load_model():
@@ -132,3 +138,39 @@ def app():
 
                 # Display the result image and the classification result
                 col1, col2 = st.columns(2)
+                with col1:
+                    FRAME_WINDOW.image(frame_rgb, caption="Captured Image")
+                with col2:
+                    RESULT_WINDOW.markdown(f"### Result\n\n**{result}**")
+            else:
+                # Clear the result window if the frame is not valid
+                RESULT_WINDOW.empty()
+
+        cap.release()
+        cv2.destroyAllWindows()
+
+    elif mode == 'Upload Picture':
+        uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
+
+        if uploaded_file is not None:
+            image = Image.open(uploaded_file)
+            st.image(image, caption='Uploaded Image.', use_column_width=True)
+            st.write("")
+            st.write("Classifying...")
+
+            result = predict(image)
+
+            st.write(f"The can is **{result}**.")
+
+# Main loop
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+
+if st.session_state["logged_in"]:
+    app()
+else:
+    choice = st.sidebar.selectbox("Login/Sign up", ["Login", "Register"])
+    if choice == "Login":
+        login()
+    else:
+        register()
