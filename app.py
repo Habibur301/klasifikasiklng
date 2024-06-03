@@ -44,14 +44,14 @@ def is_valid_frame(frame):
 
 # Function to initialize the camera with different backends
 def initialize_camera(index):
-    cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)  # Try DirectShow backend
-    if not cap.isOpened():
-        st.write("DirectShow backend failed. Trying MSMF backend...")
-        cap = cv2.VideoCapture(index, cv2.CAP_MSMF)  # Try Media Foundation backend
-    if not cap.isOpened():
-        st.write("MSMF backend failed. Trying V4L2 backend...")
-        cap = cv2.VideoCapture(index, cv2.CAP_V4L2)  # Try V4L2 backend (for Linux)
-    return cap
+    backend_candidates = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_V4L2]
+    for backend in backend_candidates:
+        cap = cv2.VideoCapture(index, backend)
+        if cap.isOpened():
+            st.write(f"Camera initialized with {backend} backend.")
+            return cap
+    st.error("No camera detected. Please check your camera device.")
+    st.stop()
 
 # Fungsi untuk halaman login
 def login():
@@ -97,13 +97,6 @@ def app():
         # Initialize camera
         camera_index = 0
         cap = initialize_camera(camera_index)
-        if not cap.isOpened():
-            st.error("No camera detected at index 0. Trying camera index 1.")
-            camera_index = 1
-            cap = initialize_camera(camera_index)
-            if not cap.isOpened():
-                st.error("No camera detected at index 1. Please check your camera device.")
-                st.stop()
 
         while run:
             start_time = time.time()
