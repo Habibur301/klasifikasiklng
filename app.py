@@ -65,7 +65,7 @@ def is_valid_frame(frame):
 
 # Function to initialize the camera with different backends
 def initialize_camera(index):
-    backend_candidates = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_V4L2]
+    backend_candidates = [cv2.CAP_ANY, cv2.CAP_V4L, cv2.CAP_MSMF]
     for backend in backend_candidates:
         cap = cv2.VideoCapture(index, backend)
         if cap.isOpened():
@@ -73,6 +73,7 @@ def initialize_camera(index):
             return cap
     st.error("No camera detected. Please check your camera device.")
     st.stop()
+
 
 # Function for login page
 def login():
