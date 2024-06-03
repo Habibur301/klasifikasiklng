@@ -4,13 +4,7 @@ import numpy as np
 from tensorflow.keras.models import load_model
 from PIL import Image
 import time
-import tensorflow as tf
-
-# Simpan kredensial pengguna di session_state (untuk demo; gunakan database nyata dalam implementasi sebenarnya)
-if "users" not in st.session_state:
-    st.session_state["users"] = {
-        "admin@example.com": {"username": "admin", "password": "password123"}
-    }
+from flask import Response
 
 # Load your Keras model
 try:
@@ -44,7 +38,7 @@ def is_valid_frame(frame):
 
 # Function to initialize the camera with different backends
 def initialize_camera(index):
-    backend_candidates = [cv2.CAP_OPENCV, cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_V4L2]
+    backend_candidates = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_V4L2]
     for backend in backend_candidates:
         cap = cv2.VideoCapture(index, backend)
         if cap.isOpened():
@@ -53,99 +47,33 @@ def initialize_camera(index):
     st.error("No camera detected. Please check your camera device.")
     st.stop()
 
-# Fungsi untuk halaman login
-def login():
-    st.title("Login")
-    email = st.text_input("Email")
-    password = st.text_input("Password", type='password')
-    if st.button("Login"):
-        users = st.session_state["users"]
-        if email in users and users[email]["password"] == password:
-            st.session_state["logged_in"] = True
-            st.session_state["username"] = users[email]["username"]
+# Function to generate frames from camera with prediction overlay
+def gen_frames():
+    cap = initialize_camera(0)
+    while True:
+        success, frame = cap.read()
+        if not success:
+            break
         else:
-            st.error("Invalid email or password")
-
-# Fungsi untuk halaman register
-def register():
-    st.title("Register")
-    username = st.text_input("Username")
-    email = st.text_input("Email")
-    password = st.text_input("Password", type='password')
-    if st.button("Register"):
-        users = st.session_state["users"]
-        if email in users:
-            st.error("Email already registered")
-        else:
-            users[email] = {"username": username, "password": password}
-            st.session_state["users"] = users
-            st.success("Registration successful. Please log in.")
-
-# Fungsi untuk halaman klasifikasi
-def app():
-    st.title("Can Classifier")
-    st.write(f"Welcome, {st.session_state['username']}!")
-    st.write("This app classifies cans as defective or non-defective.")
-
-    mode = st.radio("Choose a mode:", ('Real-Time Classification', 'Upload Picture'))
-
-    if mode == 'Real-Time Classification':
-        run = st.checkbox('Run')
-        FRAME_WINDOW = st.image([])
-        RESULT_WINDOW = st.empty()
-
-        # Initialize camera
-        camera_index = 0
-        cap = initialize_camera(camera_index)
-
-        while run:
-            start_time = time.time()
-            ret, frame = cap.read()
-            if not ret:
-                st.write("Failed to capture frame from camera. Please check your camera device.")
-                break
-
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            if is_valid_frame(frame):
-                pil_image = Image.fromarray(frame_rgb)
-
-                result = predict(pil_image)
-
-                # Display the result image and the classification result
-                col1, col2 = st.columns(2)
-                with col1:
-                    FRAME_WINDOW.image(frame_rgb, caption="Captured Image")
-                with col2:
-                    RESULT_WINDOW.markdown(f"### Result Image\n\n**{result}**")
-            else:
-                # Clear the result window if the frame is not valid
-                RESULT_WINDOW.empty()
-
-        cap.release()
-        cv2.destroyAllWindows()
-
-    elif mode == 'Upload Picture':
-        uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
-
-        if uploaded_file is not None:
-            image = Image.open(uploaded_file)
-            st.image(image, caption='Uploaded Image.', use_column_width=True)
-            st.write("")
-            st.write("Classifying...")
-
-            result = predict(image)
-
-            st.write(f"The can is **{result}**.")
+            pil_image = Image.fromarray(frame_rgb)
+            result = predict(pil_image)
+            label = f"Prediction: {result}"
+            cv2.putText(frame, label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 # Main loop
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
+def main():
+    st.title("Can Classifier")
+    app_mode = st.sidebar.selectbox("Choose the App Mode", ["Home", "Video Feed"])
+    if app_mode == "Home":
+        st.write("This is the home page.")
+    elif app_mode == "Video Feed":
+        st.write("Video Feed")
+        st.video('/video_feed')
 
-if st.session_state["logged_in"]:
-    app()
-else:
-    choice = st.selectbox("Login/Sign up", ["Login", "Register"])
-    if choice == "Login":
-        login()
-    else:
-        register()
+if __name__ == "__main__":
+    main()
