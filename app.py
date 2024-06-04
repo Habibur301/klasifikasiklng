@@ -52,9 +52,17 @@ def is_valid_frame(frame):
     return len(objects) > 0
 
 class VideoTransformer(VideoTransformerBase):
+    def __init__(self):
+        super().__init__()
+        self.frame_counter = 0
+
     def transform(self, frame):
         img = frame.to_ndarray(format="bgr24")
         logging.info("Frame received for transformation")
+
+        # Increment frame counter
+        self.frame_counter += 1
+        logging.info(f"Processing frame {self.frame_counter}")
 
         # Check if the frame contains a can-like object
         if is_valid_frame(img):
@@ -108,7 +116,13 @@ def app():
     mode = st.radio("Choose a mode:", ('Real-Time Classification', 'Upload Picture'))
 
     if mode == 'Real-Time Classification':
-        webrtc_streamer(key="example", mode=WebRtcMode.SENDRECV, video_transformer_factory=VideoTransformer, media_stream_constraints={"video": True, "audio": False})
+        webrtc_streamer(
+            key="example",
+            mode=WebRtcMode.SENDRECV,
+            video_transformer_factory=VideoTransformer,
+            media_stream_constraints={"video": True, "audio": False},
+            async_processing=True,
+        )
     elif mode == 'Upload Picture':
         uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
 
