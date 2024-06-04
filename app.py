@@ -108,7 +108,7 @@ def app():
     mode = st.radio("Choose a mode:", ('Real-Time Classification', 'Upload Picture'))
 
     if mode == 'Real-Time Classification':
-        webrtc_streamer(key="example", mode=WebRtcMode.SENDRECV, video_transformer_factory=VideoTransformer)
+        webrtc_streamer(key="example", mode=WebRtcMode.SENDRECV, video_transformer_factory=VideoTransformer, media_stream_constraints={"video": True, "audio": False})
     elif mode == 'Upload Picture':
         uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
 
