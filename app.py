@@ -98,7 +98,7 @@ def register():
     password = st.text_input("Password", type='password')
     if st.button("Register"):
         users = st.session_state["users"]
-        if email in users:
+               if email in users:
             st.error("Email already registered")
             logging.warning(f"Registration attempt with already registered email: {email}")
         else:
@@ -119,7 +119,7 @@ def app():
         webrtc_streamer(
             key="example",
             mode=WebRtcMode.SENDRECV,
-            video_transformer_factory=VideoTransformer,
+            video_processor_factory=VideoTransformer,
             media_stream_constraints={"video": True, "audio": False},
             async_processing=True,
         )
