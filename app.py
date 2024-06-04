@@ -5,6 +5,7 @@ from tensorflow.keras.models import load_model
 from PIL import Image
 import time
 import tensorflow as tf
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
 
 # Simpan kredensial pengguna di session_state (untuk demo; gunakan database nyata dalam implementasi sebenarnya)
 if "users" not in st.session_state:
@@ -42,15 +43,18 @@ def is_valid_frame(frame):
     objects = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(50, 50))
     return len(objects) > 0
 
-# Function to initialize the camera with different backends
-def initialize_camera(index):
-    backends = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_V4L2]
-    cap = None
-    for backend in backends:
-        cap = cv2.VideoCapture(index, backend)
-        if cap.isOpened():
-            return cap
-    return None
+class VideoTransformer(VideoTransformerBase):
+    def transform(self, frame):
+        img = frame.to_ndarray(format="bgr24")
+
+        # Check if the frame contains a can-like object
+        if is_valid_frame(img):
+            frame_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            pil_image = Image.fromarray(frame_rgb)
+            result = predict(pil_image)
+            cv2.putText(img, result, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+
+        return img
 
 # Fungsi untuk halaman login
 def login():
@@ -89,42 +93,7 @@ def app():
     mode = st.radio("Choose a mode:", ('Real-Time Classification', 'Upload Picture'))
 
     if mode == 'Real-Time Classification':
-        run = st.checkbox('Run')
-        FRAME_WINDOW = st.image([])
-        RESULT_WINDOW = st.empty()
-
-        # Initialize camera
-        cap = initialize_camera(0)
-        if not cap:
-            st.error("No camera detected at index 0 or 1. Please check your camera device.")
-            st.stop()
-
-        while run:
-            start_time = time.time()
-            ret, frame = cap.read()
-            if not ret:
-                st.write("Failed to capture frame from camera. Please check your camera device.")
-                break
-
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            if is_valid_frame(frame):
-                pil_image = Image.fromarray(frame_rgb)
-
-                result = predict(pil_image)
-
-                # Display the result image and the classification result
-                col1, col2 = st.columns(2)
-                with col1:
-                    FRAME_WINDOW.image(frame_rgb, caption="Captured Image")
-                with col2:
-                    RESULT_WINDOW.markdown(f"### Result Image\n\n**{result}**")
-            else:
-                # Clear the result window if the frame is not valid
-                RESULT_WINDOW.empty()
-
-        cap.release()
-        cv2.destroyAllWindows()
-
+        webrtc_streamer(key="example", mode=WebRtcMode.SENDRECV, video_transformer_factory=VideoTransformer)
     elif mode == 'Upload Picture':
         uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
 
