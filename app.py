@@ -3,9 +3,12 @@ import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
 from PIL import Image
-import time
 import tensorflow as tf
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
+import logging
+
+# Initialize logging
+logging.basicConfig(level=logging.INFO)
 
 # Simpan kredensial pengguna di session_state (untuk demo; gunakan database nyata dalam implementasi sebenarnya)
 if "users" not in st.session_state:
@@ -19,6 +22,7 @@ try:
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 except Exception as e:
     st.error(f"Error loading model: {e}")
+    logging.error(f"Error loading model: {e}")
 
 # Load Haar Cascade for object detection
 cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'  # Placeholder path, use appropriate classifier
@@ -46,13 +50,16 @@ def is_valid_frame(frame):
 class VideoTransformer(VideoTransformerBase):
     def transform(self, frame):
         img = frame.to_ndarray(format="bgr24")
+        logging.info("Frame received for transformation")
 
         # Check if the frame contains a can-like object
         if is_valid_frame(img):
+            logging.info("Valid frame detected")
             frame_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             pil_image = Image.fromarray(frame_rgb)
             result = predict(pil_image)
             cv2.putText(img, result, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+            logging.info(f"Classification result: {result}")
 
         return img
 
