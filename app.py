@@ -4,6 +4,7 @@ import numpy as np
 from tensorflow.keras.models import load_model
 from PIL import Image
 from threading import Thread
+from queue import Queue  # Menambahkan impor Queue
 
 # Simpan kredensial pengguna di session_state (untuk demo; gunakan database nyata dalam implementasi sebenarnya)
 if "users" not in st.session_state:
