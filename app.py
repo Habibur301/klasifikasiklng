@@ -115,26 +115,6 @@ def app():
 
     mode = st.radio("Choose a mode:", ('Real-Time Classification', 'Upload Picture'))
 
-    rtc_configuration = RTCConfiguration(
-        {
-            "iceServers": [
-                {"urls": ["stun:ss-turn1.xirsys.com"]},
-                {
-                    "username": "LRfSYlU_XW3ZtUpmBw8qLibUkoKPeZNp8rJ6u3x7iakFGtd3qSmknLo-hlWViWfNAAAAAGZgL-ZoYWJpYnVy",
-                    "credential": "109f7224-231e-11ef-a6a5-0242ac140004",
-                    "urls": [
-                        "turn:ss-turn1.xirsys.com:80?transport=udp",
-                        "turn:ss-turn1.xirsys.com:3478?transport=udp",
-                        "turn:ss-turn1.xirsys.com:80?transport=tcp",
-                        "turn:ss-turn1.xirsys.com:3478?transport=tcp",
-                        "turns:ss-turn1.xirsys.com:443?transport=tcp",
-                        "turns:ss-turn1.xirsys.com:5349?transport=tcp"
-                    ]
-                }
-            ]
-        }
-    )
-
     if mode == 'Real-Time Classification':
         webrtc_streamer(
             key="example",
@@ -142,7 +122,9 @@ def app():
             video_processor_factory=VideoTransformer,
             media_stream_constraints={"video": True, "audio": False},
             async_processing=True,
-            rtc_configuration=rtc_configuration,  # Use the configured RTCConfiguration
+            rtc_configuration=RTCConfiguration(
+                {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+            ),
         )
     elif mode == 'Upload Picture':
         uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
