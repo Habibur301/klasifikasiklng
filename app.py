@@ -7,7 +7,7 @@ import tensorflow as tf
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode, RTCConfiguration
 import logging
 
-# Initialize logging
+# Inisialisasi logging
 logging.basicConfig(level=logging.INFO)
 
 # Simpan kredensial pengguna di session_state (untuk demo; gunakan database nyata dalam implementasi sebenarnya)
@@ -16,7 +16,7 @@ if "users" not in st.session_state:
         "admin@example.com": {"username": "admin", "password": "password123"}
     }
 
-# Load your Keras model
+# Load model Keras Anda
 try:
     model = load_model('model.h5')
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
@@ -25,26 +25,26 @@ except Exception as e:
     st.error(f"Error loading model: {e}")
     logging.error(f"Error loading model: {e}")
 
-# Load Haar Cascade for object detection
-cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'  # Placeholder path, use appropriate classifier
+# Load Haar Cascade untuk deteksi objek
+cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'  # Placeholder path, gunakan classifier yang sesuai
 cascade = cv2.CascadeClassifier(cascade_path)
 logging.info("Cascade classifier loaded successfully")
 
-# Function to preprocess the image/frame and make predictions
+# Fungsi untuk preprocessing gambar/frame dan membuat prediksi
 def preprocess_image(image):
-    image = image.resize((300, 300))  # Adjust target_size as needed
-    image_array = np.array(image) / 255.0  # Normalize if needed
-    image_array = np.expand_dims(image_array, axis=0)  # Add batch dimension
+    image = image.resize((300, 300))  # Sesuaikan target_size sesuai kebutuhan
+    image_array = np.array(image) / 255.0  # Normalisasi jika diperlukan
+    image_array = np.expand_dims(image_array, axis=0)  # Tambahkan dimensi batch
     return image_array
 
 def predict(image):
     processed_image = preprocess_image(image)
     prediction = model.predict(processed_image)
-    result = 'Kaleng Cacat' if prediction[0][0] <= 0.5 else 'Kaleng Tidak Cacat'  # Adjust the condition as needed
+    result = 'Kaleng Cacat' jika prediction[0][0] <= 0.5 else 'Kaleng Tidak Cacat'  # Sesuaikan kondisi sesuai kebutuhan
     logging.info(f"Prediction made: {result}")
     return result
 
-# Function to check if the frame contains a can-like object
+# Fungsi untuk memeriksa apakah frame berisi objek seperti kaleng
 def is_valid_frame(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     objects = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(50, 50))
@@ -61,11 +61,11 @@ class VideoTransformer(VideoTransformerBase):
             img = frame.to_ndarray(format="bgr24")
             logging.info("Frame received for transformation")
 
-            # Increment frame counter
+            # Tambahkan penghitung frame
             self.frame_counter += 1
             logging.info(f"Processing frame {self.frame_counter}")
 
-            # Check if the frame contains a can-like object
+            # Periksa apakah frame berisi objek seperti kaleng
             if is_valid_frame(img):
                 logging.info("Valid frame detected")
                 frame_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
