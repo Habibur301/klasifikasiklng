@@ -6,7 +6,6 @@ from PIL import Image
 import tensorflow as tf
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode, RTCConfiguration
 import logging
-import asyncio
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -58,23 +57,27 @@ class VideoTransformer(VideoTransformerBase):
         self.frame_counter = 0
 
     def transform(self, frame):
-        img = frame.to_ndarray(format="bgr24")
-        logging.info("Frame received for transformation")
+        try:
+            img = frame.to_ndarray(format="bgr24")
+            logging.info("Frame received for transformation")
 
-        # Increment frame counter
-        self.frame_counter += 1
-        logging.info(f"Processing frame {self.frame_counter}")
+            # Increment frame counter
+            self.frame_counter += 1
+            logging.info(f"Processing frame {self.frame_counter}")
 
-        # Check if the frame contains a can-like object
-        if is_valid_frame(img):
-            logging.info("Valid frame detected")
-            frame_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            pil_image = Image.fromarray(frame_rgb)
-            result = predict(pil_image)
-            cv2.putText(img, result, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-            logging.info(f"Classification result: {result}")
+            # Check if the frame contains a can-like object
+            if is_valid_frame(img):
+                logging.info("Valid frame detected")
+                frame_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                pil_image = Image.fromarray(frame_rgb)
+                result = predict(pil_image)
+                cv2.putText(img, result, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                logging.info(f"Classification result: {result}")
 
-        return img
+            return img
+        except Exception as e:
+            logging.error(f"Error in frame transformation: {e}")
+            return frame
 
 # Fungsi untuk halaman login
 def login():
