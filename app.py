@@ -115,6 +115,16 @@ def app():
 
     mode = st.radio("Choose a mode:", ('Real-Time Classification', 'Upload Picture'))
 
+    rtc_configuration = RTCConfiguration(
+        {
+            "iceServers": [
+                {"urls": ["stun:stun.l.google.com:19302"]},  # Google STUN server
+                {"urls": ["turn:global.xirsys.net"], "username": "YOUR_XIRSYS_USERNAME", "credential": "YOUR_XIRSYS_CREDENTIAL"}
+                # Replace "YOUR_XIRSYS_USERNAME" and "YOUR_XIRSYS_CREDENTIAL" with your Xirsys TURN server information
+            ]
+        }
+    )
+
     if mode == 'Real-Time Classification':
         webrtc_streamer(
             key="example",
@@ -122,9 +132,7 @@ def app():
             video_processor_factory=VideoTransformer,
             media_stream_constraints={"video": True, "audio": False},
             async_processing=True,
-            rtc_configuration=RTCConfiguration(
-                {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-            ),
+            rtc_configuration=rtc_configuration,  # Use the configured RTCConfiguration
         )
     elif mode == 'Upload Picture':
         uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
