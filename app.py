@@ -6,6 +6,7 @@ from PIL import Image
 import tensorflow as tf
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode, RTCConfiguration
 import logging
+import asyncio
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
