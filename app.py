@@ -3,9 +3,8 @@ import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
 from PIL import Image
-import tensorflow as tf
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode, RTCConfiguration
 import logging
+import tempfile
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -51,29 +50,19 @@ def is_valid_frame(frame):
     logging.info(f"Objects detected: {len(objects)}")
     return len(objects) > 0
 
-class VideoTransformer(VideoTransformerBase):
-    def __init__(self):
-        super().__init__()
-        self.frame_counter = 0
+def capture_image():
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        st.error("Cannot open webcam")
+        return None
 
-    def transform(self, frame):
-        img = frame.to_ndarray(format="bgr24")
-        logging.info("Frame received for transformation")
+    ret, frame = cap.read()
+    if not ret:
+        st.error("Failed to capture image")
+        return None
 
-        # Increment frame counter
-        self.frame_counter += 1
-        logging.info(f"Processing frame {self.frame_counter}")
-
-        # Check if the frame contains a can-like object
-        if is_valid_frame(img):
-            logging.info("Valid frame detected")
-            frame_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            pil_image = Image.fromarray(frame_rgb)
-            result = predict(pil_image)
-            cv2.putText(img, result, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-            logging.info(f"Classification result: {result}")
-
-        return img
+    cap.release()
+    return frame
 
 # Fungsi untuk halaman login
 def login():
@@ -116,27 +105,24 @@ def app():
     mode = st.radio("Choose a mode:", ('Real-Time Classification', 'Upload Picture'))
 
     if mode == 'Real-Time Classification':
-        webrtc_streamer(
-            key="example",
-            mode=WebRtcMode.SENDRECV,
-            video_processor_factory=VideoTransformer,
-            media_stream_constraints={"video": True, "audio": False},
-            async_processing=True,
-            rtc_configuration=RTCConfiguration(
-                {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-            ),
-        )
+        st.write("Click the button below to capture an image from your webcam and classify it.")
+        if st.button("Capture and Classify"):
+            frame = capture_image()
+            if frame is not None:
+                st.image(frame, caption='Captured Image.', use_column_width=True)
+                st.write("Classifying...")
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                pil_image = Image.fromarray(frame_rgb)
+                result = predict(pil_image)
+                st.write(f"The can is **{result}**.")
     elif mode == 'Upload Picture':
         uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
-
         if uploaded_file is not None:
             image = Image.open(uploaded_file)
             st.image(image, caption='Uploaded Image.', use_column_width=True)
             st.write("")
             st.write("Classifying...")
-
             result = predict(image)
-
             st.write(f"The can is **{result}**.")
 
 # Main loop
