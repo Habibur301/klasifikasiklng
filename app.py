@@ -3,7 +3,6 @@ import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
 from PIL import Image
-import tensorflow as tf
 import logging
 
 # Initialize logging
@@ -25,21 +24,21 @@ except Exception as e:
     logging.error(f"Error loading model: {e}")
 
 # Load Haar Cascade for object detection
-cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'  # Placeholder path, use appropriate classifier
+cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
 cascade = cv2.CascadeClassifier(cascade_path)
 logging.info("Cascade classifier loaded successfully")
 
 # Function to preprocess the image/frame and make predictions
 def preprocess_image(image):
-    image = image.resize((300, 300))  # Adjust target_size as needed
-    image_array = np.array(image) / 255.0  # Normalize if needed
-    image_array = np.expand_dims(image_array, axis=0)  # Add batch dimension
+    image = image.resize((300, 300))
+    image_array = np.array(image) / 255.0
+    image_array = np.expand_dims(image_array, axis=0)
     return image_array
 
 def predict(image):
     processed_image = preprocess_image(image)
     prediction = model.predict(processed_image)
-    result = 'Kaleng Cacat' if prediction[0][0] <= 0.5 else 'Kaleng Tidak Cacat'  # Adjust the condition as needed
+    result = 'Kaleng Cacat' if prediction[0][0] <= 0.5 else 'Kaleng Tidak Cacat'
     logging.info(f"Prediction made: {result}")
     return result
 
@@ -52,7 +51,20 @@ def is_valid_frame(frame):
 
 def video_capture():
     stframe = st.empty()
-    cap = cv2.VideoCapture(0)  # Change the argument to the video device index of the virtual camera if necessary
+    camera_index = 0
+    cap = None
+    
+    # Try different camera indices until we find one that works
+    while camera_index < 5:
+        cap = cv2.VideoCapture(camera_index)
+        if cap.isOpened():
+            logging.info(f"Opened camera index {camera_index}")
+            break
+        camera_index += 1
+    
+    if not cap or not cap.isOpened():
+        st.error("Failed to open any camera")
+        return
 
     while True:
         ret, frame = cap.read()
@@ -136,7 +148,7 @@ if st.session_state["logged_in"]:
     app()
 else:
     choice = st.selectbox("Login/Sign up", ["Login", "Register"])
-    if choice == "Login":
+    if choice is "Login":
         login()
     else:
         register()
