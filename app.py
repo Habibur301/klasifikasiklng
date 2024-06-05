@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
 from PIL import Image
+from threading import Thread
 
 # Simpan kredensial pengguna di session_state (untuk demo; gunakan database nyata dalam implementasi sebenarnya)
 if "users" not in st.session_state:
@@ -41,33 +42,20 @@ def is_valid_frame(frame):
     objects = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(50, 50))
     return len(objects) > 0
 
-# Fungsi untuk halaman login
-def login():
-    st.title("Login")
-    email = st.text_input("Email")
-    password = st.text_input("Password", type='password')
-    if st.button("Login"):
-        users = st.session_state["users"]
-        if email in users and users[email]["password"] == password:
-            st.session_state["logged_in"] = True
-            st.session_state["username"] = users[email]["username"]
-        else:
-            st.error("Invalid email or password")
+# Function to read frames from the camera
+def read_frames():
+    cap = cv2.VideoCapture(0)
+    while st.session_state["logged_in"] and cap.isOpened():
+        ret, frame = cap.read()
+        if ret:
+            if is_valid_frame(frame):
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                pil_image = Image.fromarray(frame_rgb)
+                result = predict(pil_image)
+                cv2.putText(frame, result, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
-# Fungsi untuk halaman register
-def register():
-    st.title("Register")
-    username = st.text_input("Username")
-    email = st.text_input("Email")
-    password = st.text_input("Password", type='password')
-    if st.button("Register"):
-        users = st.session_state["users"]
-        if email in users:
-            st.error("Email already registered")
-        else:
-            users[email] = {"username": username, "password": password}
-            st.session_state["users"] = users
-            st.success("Registration successful. Please log in.")
+            st.frame_queue.put(frame)
+    cap.release()
 
 # Fungsi untuk halaman klasifikasi
 def app():
@@ -79,24 +67,10 @@ def app():
 
     if mode == 'Real-Time Classification':
         stframe = st.empty()
-        cap = cv2.VideoCapture(0)
-        
         while True:
-            ret, frame = cap.read()
-            if not ret:
-                st.error("Failed to capture image")
-                break
-            
-            if is_valid_frame(frame):
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                pil_image = Image.fromarray(frame_rgb)
-                result = predict(pil_image)
-                cv2.putText(frame, result, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-
-            stframe.image(frame, channels="BGR")
-
-        cap.release()
-        cv2.destroyAllWindows()
+            if not st.frame_queue.empty():
+                frame = st.frame_queue.get()
+                stframe.image(frame, channels="BGR")
 
     elif mode == 'Upload Picture':
         uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
@@ -116,6 +90,8 @@ if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
 if st.session_state["logged_in"]:
+    st.frame_queue = Queue()
+    Thread(target=read_frames).start()
     app()
 else:
     choice = st.selectbox("Login/Sign up", ["Login", "Register"])
