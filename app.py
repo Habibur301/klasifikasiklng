@@ -3,6 +3,8 @@ import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
 from PIL import Image
+import tensorflow as tf
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode, RTCConfiguration
 import logging
 
 # Initialize logging
@@ -24,21 +26,21 @@ except Exception as e:
     logging.error(f"Error loading model: {e}")
 
 # Load Haar Cascade for object detection
-cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'  # Placeholder path, use appropriate classifier
 cascade = cv2.CascadeClassifier(cascade_path)
 logging.info("Cascade classifier loaded successfully")
 
 # Function to preprocess the image/frame and make predictions
 def preprocess_image(image):
-    image = image.resize((300, 300))
-    image_array = np.array(image) / 255.0
-    image_array = np.expand_dims(image_array, axis=0)
+    image = image.resize((300, 300))  # Adjust target_size as needed
+    image_array = np.array(image) / 255.0  # Normalize if needed
+    image_array = np.expand_dims(image_array, axis=0)  # Add batch dimension
     return image_array
 
 def predict(image):
     processed_image = preprocess_image(image)
     prediction = model.predict(processed_image)
-    result = 'Kaleng Cacat' if prediction[0][0] <= 0.5 else 'Kaleng Tidak Cacat'
+    result = 'Kaleng Cacat' if prediction[0][0] <= 0.5 else 'Kaleng Tidak Cacat'  # Adjust the condition as needed
     logging.info(f"Prediction made: {result}")
     return result
 
@@ -49,41 +51,29 @@ def is_valid_frame(frame):
     logging.info(f"Objects detected: {len(objects)}")
     return len(objects) > 0
 
-def video_capture():
-    stframe = st.empty()
-    camera_index = 0
-    cap = None
-    
-    # Try different camera indices until we find one that works
-    while camera_index < 5:
-        cap = cv2.VideoCapture(camera_index)
-        if cap.isOpened():
-            logging.info(f"Opened camera index {camera_index}")
-            break
-        camera_index += 1
-    
-    if not cap or not cap.isOpened():
-        st.error("Failed to open any camera")
-        return
+class VideoTransformer(VideoTransformerBase):
+    def __init__(self):
+        super().__init__()
+        self.frame_counter = 0
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            st.error("Failed to capture video")
-            break
+    def transform(self, frame):
+        img = frame.to_ndarray(format="bgr24")
+        logging.info("Frame received for transformation")
+
+        # Increment frame counter
+        self.frame_counter += 1
+        logging.info(f"Processing frame {self.frame_counter}")
 
         # Check if the frame contains a can-like object
-        if is_valid_frame(frame):
+        if is_valid_frame(img):
             logging.info("Valid frame detected")
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             pil_image = Image.fromarray(frame_rgb)
             result = predict(pil_image)
-            cv2.putText(frame, result, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+            cv2.putText(img, result, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
             logging.info(f"Classification result: {result}")
 
-        stframe.image(frame, channels="BGR")
-
-    cap.release()
+        return img
 
 # Fungsi untuk halaman login
 def login():
@@ -126,7 +116,16 @@ def app():
     mode = st.radio("Choose a mode:", ('Real-Time Classification', 'Upload Picture'))
 
     if mode == 'Real-Time Classification':
-        video_capture()
+        webrtc_streamer(
+            key="example",
+            mode=WebRtcMode.SENDRECV,
+            video_processor_factory=VideoTransformer,
+            media_stream_constraints={"video": True, "audio": False},
+            async_processing=True,
+            rtc_configuration=RTCConfiguration(
+                {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+            ),
+        )
     elif mode == 'Upload Picture':
         uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
 
@@ -148,7 +147,7 @@ if st.session_state["logged_in"]:
     app()
 else:
     choice = st.selectbox("Login/Sign up", ["Login", "Register"])
-    if choice is "Login":
+    if choice == "Login":
         login()
     else:
         register()
