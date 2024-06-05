@@ -118,9 +118,19 @@ def app():
     rtc_configuration = RTCConfiguration(
         {
             "iceServers": [
-                {"urls": ["stun:stun.l.google.com:19302"]},  # Google STUN server
-                {"urls": ["turn:global.xirsys.net"], "username": "YOUR_XIRSYS_USERNAME", "credential": "YOUR_XIRSYS_CREDENTIAL"}
-                # Replace "YOUR_XIRSYS_USERNAME" and "YOUR_XIRSYS_CREDENTIAL" with your Xirsys TURN server information
+                {"urls": ["stun:ss-turn1.xirsys.com"]},
+                {
+                    "username": "LRfSYlU_XW3ZtUpmBw8qLibUkoKPeZNp8rJ6u3x7iakFGtd3qSmknLo-hlWViWfNAAAAAGZgL-ZoYWJpYnVy",
+                    "credential": "109f7224-231e-11ef-a6a5-0242ac140004",
+                    "urls": [
+                        "turn:ss-turn1.xirsys.com:80?transport=udp",
+                        "turn:ss-turn1.xirsys.com:3478?transport=udp",
+                        "turn:ss-turn1.xirsys.com:80?transport=tcp",
+                        "turn:ss-turn1.xirsys.com:3478?transport=tcp",
+                        "turns:ss-turn1.xirsys.com:443?transport=tcp",
+                        "turns:ss-turn1.xirsys.com:5349?transport=tcp"
+                    ]
+                }
             ]
         }
     )
