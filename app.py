@@ -3,7 +3,6 @@ import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
 from PIL import Image
-import tensorflow as tf
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode, RTCConfiguration
 import logging
 
@@ -120,16 +119,20 @@ def app():
     mode = st.radio("Choose a mode:", ('Real-Time Classification', 'Upload Picture'))
 
     if mode == 'Real-Time Classification':
-        webrtc_streamer(
-            key="example",
-            mode=WebRtcMode.SENDRECV,
-            video_processor_factory=VideoTransformer,
-            media_stream_constraints={"video": True, "audio": False},
-            async_processing=True,
-            rtc_configuration=RTCConfiguration(
-                {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-            ),
-        )
+        try:
+            webrtc_streamer(
+                key="example",
+                mode=WebRtcMode.SENDRECV,
+                video_processor_factory=VideoTransformer,
+                media_stream_constraints={"video": True, "audio": False},
+                async_processing=True,
+                rtc_configuration=RTCConfiguration(
+                    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+                ),
+            )
+        except Exception as e:
+            st.error(f"Error starting WebRTC stream: {e}")
+            logging.error(f"Error starting WebRTC stream: {e}")
     elif mode == 'Upload Picture':
         uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
 
