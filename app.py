@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
 from PIL import Image
+import joblib
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode, RTCConfiguration
 import logging
 
@@ -24,14 +25,18 @@ except Exception as e:
     st.error(f"Error loading model: {e}")
     logging.error(f"Error loading model: {e}")
 
-# Load Haar Cascade untuk deteksi objek
-cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'  # Path placeholder, gunakan classifier yang sesuai
-cascade = cv2.CascadeClassifier(cascade_path)
-logging.info("Cascade classifier berhasil dimuat")
+# Load model SVM
+try:
+    svm_model = joblib.load('svm_model.pkl')
+    logging.info("SVM model berhasil dimuat")
+except Exception as e:
+    st.error(f"Error loading SVM model: {e}")
+    logging.error(f"Error loading SVM model: {e}")
 
 # Fungsi untuk pra-pemrosesan gambar/frame dan membuat prediksi
 def preprocess_image(image):
     try:
+        image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         image = image.resize((300, 300))  # Sesuaikan target_size jika perlu
         image_array = np.array(image) / 255.0  # Normalisasi jika perlu
         if image_array.shape[-1] == 4:
@@ -42,25 +47,35 @@ def preprocess_image(image):
     except Exception as e:
         logging.error(f"Error preprocessing image: {e}")
         st.error(f"Error preprocessing image: {e}")
+        return None
 
 def predict(image):
     try:
         processed_image = preprocess_image(image)
         if processed_image is not None:
-            prediction = model.predict(processed_image)
-            result = 'Kaleng Cacat' if prediction[0][0] <= 0.5 else 'Kaleng Tidak Cacat'  # Sesuaikan kondisinya jika perlu
+            cnn_features = model.predict(processed_image)
+            svm_prediction = svm_model.predict(cnn_features)
+            result = 'Kaleng Cacat' if svm_prediction[0] == 0 else 'Kaleng Tidak Cacat'
             logging.info(f"Prediction made: {result}")
             return result
     except Exception as e:
         logging.error(f"Error during prediction: {e}")
         st.error(f"Error during prediction: {e}")
+        return None
 
-# Fungsi untuk memeriksa apakah frame mengandung objek seperti kaleng
-def is_valid_frame(frame):
+def detect_can(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    objects = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(50, 50))
-    logging.info(f"Objects detected: {len(objects)}")
-    return len(objects) > 0
+    blurred = cv2.GaussianBlur(gray, (15, 15), 0)
+    edged = cv2.Canny(blurred, 50, 150)
+    
+    contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for contour in contours:
+        if cv2.contourArea(contour) > 1000:  # Adjust contour area as necessary
+            x, y, w, h = cv2.boundingRect(contour)
+            aspect_ratio = w / float(h)
+            if 0.5 < aspect_ratio < 1.5:  # Adjust aspect ratio range as necessary
+                return True, (x, y, w, h)
+    return False, None
 
 class VideoTransformer(VideoTransformerBase):
     def __init__(self):
@@ -76,13 +91,15 @@ class VideoTransformer(VideoTransformerBase):
         logging.info(f"Memproses frame {self.frame_counter}")
 
         # Periksa apakah frame mengandung objek seperti kaleng
-        if is_valid_frame(img):
-            logging.info("Frame valid terdeteksi")
-            frame_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            pil_image = Image.fromarray(frame_rgb)
-            result = predict(pil_image)
-            cv2.putText(img, result, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-            logging.info(f"Hasil klasifikasi: {result}")
+        has_can, bbox = detect_can(img)
+        if has_can:
+            x, y, w, h = bbox
+            can_roi = img[y:y+h, x:x+w]
+            result = predict(can_roi)
+            if result:
+                cv2.putText(img, result, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                logging.info(f"Hasil klasifikasi: {result}")
 
         return img
 
@@ -127,15 +144,23 @@ def app():
     mode = st.radio("Pilih mode:", ('Klasifikasi Real-Time', 'Unggah Gambar'))
 
     if mode == 'Klasifikasi Real-Time':
+        rtc_configuration = RTCConfiguration({
+            "iceServers": [
+                {"urls": ["stun:stun.l.google.com:19302"]},
+                {"urls": ["stun:stun1.l.google.com:19302"]},
+                {"urls": ["stun:stun2.l.google.com:19302"]},
+                {"urls": ["stun:stun3.l.google.com:19302"]},
+                {"urls": ["stun:stun4.l.google.com:19302"]}
+            ]
+        })
+
         webrtc_streamer(
             key="example",
             mode=WebRtcMode.SENDRECV,
             video_processor_factory=VideoTransformer,
             media_stream_constraints={"video": True, "audio": False},
             async_processing=True,
-            rtc_configuration=RTCConfiguration(
-                {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-            ),
+            rtc_configuration=rtc_configuration,
         )
     elif mode == 'Unggah Gambar':
         uploaded_file = st.file_uploader("Pilih gambar...", type=["jpg", "png", "jpeg"])
@@ -146,7 +171,7 @@ def app():
             st.write("")
             st.write("Mengklasifikasikan...")
 
-            result = predict(image)
+            result = predict(np.array(image))
 
             st.write(f"Kaleng tersebut **{result}**.")
 
